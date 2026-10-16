@@ -2,16 +2,15 @@
 
 Case técnico para Desenvolvedor(a) Full Stack Pleno: um **dashboard comercial** e uma **assistente de IA (Iris)** que consomem exatamente a mesma fonte de dados — os números da Iris são, por construção, os números do dashboard.
 
-**Demo:** _link na seção [Deploy](#deploy)_ · **Stack:** Next.js 16 · React 19 · TypeScript · Tailwind + shadcn/ui · PostgreSQL (Neon) + Drizzle · OpenAI
+**Demo:** **https://decoding-crm-five.vercel.app** · **Stack:** Next.js 16 · React 19 · TypeScript · Tailwind + shadcn/ui · PostgreSQL (Neon) + Drizzle · OpenAI
 
-| Dashboard (claro) | Iris no painel lateral (escuro) |
-|---|---|
-| ![Dashboard](docs/screenshots/dashboard-light.png) | ![Iris](docs/screenshots/iris-dark.png) |
+![Dashboard](docs/screenshots/01-dashboard.png)
 
 ---
 
 ## Sumário
 
+0. [Tour pelo projeto](#tour-pelo-projeto)
 1. [Como executar](#como-executar)
 2. [Arquitetura](#arquitetura)
 3. [Decisões técnicas](#decisões-técnicas)
@@ -23,6 +22,58 @@ Case técnico para Desenvolvedor(a) Full Stack Pleno: um **dashboard comercial**
 9. [Decisão de produto: Índice de risco do pipeline](#decisão-de-produto-índice-de-risco-do-pipeline)
 10. [Próximos passos](#próximos-passos)
 11. [Uso de IA no desenvolvimento](#uso-de-ia-no-desenvolvimento)
+
+---
+
+## Tour pelo projeto
+
+### 1. Visão geral do dashboard
+
+![Dashboard comercial](docs/screenshots/01-dashboard.png)
+
+Ao abrir, o dashboard mostra os **últimos 12 meses**. Os 6 cards são calculados no banco a cada requisição: total de leads (com o total da base embaixo), oportunidades abertas (com quantas estão paradas), valor em negociação, vendas concluídas, taxa de conversão e o **Índice de risco**, a decisão de produto deste case. Cada card tem um ícone ⓘ explicando como é calculado.
+
+### 2. Filtros que recalculam a tela inteira
+
+![Filtro por etapa](docs/screenshots/02-filtro-etapa.png)
+
+Período (presets ou datas), etapa e responsável ficam na **URL**, então o link é compartilhável. Ao filtrar por "Negociação", indicadores que não fazem sentido (vendas concluídas, conversão) mostram **"Não se aplica à etapa filtrada"** em vez de um zero enganoso, e o gráfico de vendas explica por que não se aplica.
+
+### 3. Estado vazio explicativo
+
+![Empty state](docs/screenshots/03-empty.png)
+
+Quando o recorte não tem dados, a tela não quebra nem mostra zeros: explica o filtro aplicado e oferece "Limpar filtros". Cada bloco também tem skeleton no carregamento e erro com "Tentar novamente".
+
+### 4. Tabela de leads e oportunidades
+
+![Tabela](docs/screenshots/04-tabela.png)
+
+Ordenação por coluna e paginação **no servidor**, busca sem acento (por lead, contato ou oportunidade), etapa com ícone + texto, valor em R$, responsável e o selo **"Parada há X dias"** nas abertas sem atualização há mais de 7 dias. O ícone ✦ de cada linha pergunta à Iris sobre aquela oportunidade.
+
+### 5. Iris no painel lateral
+
+![Iris no painel](docs/screenshots/05-iris-painel.png)
+
+O botão "Perguntar à Iris" abre o painel sem sair do dashboard; a Iris recebe os filtros da tela como contexto. A resposta chega em **streaming**, mostrando as consultas que ela está fazendo e, ao final, as fontes consultadas. Aqui ela lista **todas** as oportunidades paradas, agrupadas por responsável, com recomendação de acompanhamento.
+
+### 6. "Perguntar à Iris" a partir de uma linha
+
+![Perguntar sobre uma oportunidade](docs/screenshots/06-perguntar-linha.png)
+
+O botão da linha envia o **id da oportunidade** (#74), e a Iris usa a ferramenta `get_opportunity` para uma consulta exata — sem depender de busca por nome. A resposta traz etapa, valor, responsável, dias parada, a nota registrada e o próximo passo.
+
+### 7. Página da Iris com histórico de conversas
+
+![Iris com histórico](docs/screenshots/07-iris-historico.png)
+
+Na página `/iris`, o histórico fica à esquerda (gaveta no mobile): nova conversa, abrir e excluir. As conversas ficam salvas por visitante anônimo e sobrevivem a recarregar a página. Tema escuro com a paleta da Decoding.
+
+### 8. Mobile
+
+![Mobile](docs/screenshots/08-mobile.png)
+
+Layout responsivo: menu em gaveta, filtros empilhados, cards em uma coluna e tabela com rolagem horizontal.
 
 ---
 
@@ -162,7 +213,8 @@ Regras de dependência: componentes nunca importam repositories; services nunca 
 |---|---|
 | `get_metrics` | `getDashboardMetrics` (mesmos cards do dashboard) |
 | `get_funnel` | `getFunnel` |
-| `list_opportunities` | `listOpportunities` (filtros, ordenação, limite) |
+| `list_opportunities` | `listOpportunities` (filtros, ordenação, limite; busca palavra por palavra) |
+| `get_opportunity` | `listOpportunities` por id — usada pelo botão "Perguntar à Iris" da tabela |
 | `get_stale_opportunities` | `listStaleOpportunities` (abertas sem atualização há +7 dias) |
 | `get_monthly_wins` | `getMonthlyWins` |
 | `search_leads` | busca híbrida (abaixo) |
@@ -180,13 +232,20 @@ Os resultados já vêm **formatados** (R$, %, dd/mm/aaaa) e com totais calculado
 - **System prompt** (`src/server/iris/prompt.ts`) exige que todo número venha de uma ferramenta chamada na conversa, usa as mesmas constantes de regra do código (7 dias, faixas de risco) e informa ao modelo o **intervalo de datas coberto pela base** — por isso "qual foi a receita de 2018?" recebe "não há registros suficientes".
 - **Fora de contexto:** recusa educada + exemplos do que ela responde. Pedidos de alteração ("exclua a oportunidade X") são explicados como impossíveis (somente leitura).
 - **Contexto do dashboard:** quando aberta pelo painel lateral, a Iris recebe os filtros que o usuário está vendo; perguntas como "quantas oportunidades tem nesse filtro?" usam o mesmo recorte da tela.
-- **Avaliação com o modelo real** (`npm run eval:iris`): faz as perguntas obrigatórias do case e compara os valores da resposta com os services. Resultado atual: **5/5**. Esse eval pegou um problema real durante o desenvolvimento — o modelo adicionava `stage: "novo_contato"` em perguntas sobre "abertas"; corrigi descrições das ferramentas e o prompt e o eval passou a garantir a regressão.
+- **Avaliação com o modelo real** (`npm run eval:iris`): faz as perguntas obrigatórias do case e compara os valores da resposta com os services. Resultado atual: **7/7**. Esse eval pegou dois problemas reais durante o desenvolvimento: (1) o modelo adicionava `stage: "novo_contato"` em perguntas sobre "abertas"; (2) no botão "Perguntar à Iris", ela respondia "não há registro" sem consultar o banco. Corrigi com descrições das ferramentas, a ferramenta `get_opportunity` por id, busca palavra por palavra e uma regra no prompt (nunca negar que algo existe sem uma consulta nova) — e os dois casos viraram regressões no eval.
 
 ### Streaming e resiliência
 
 - `/api/chat` responde em **Server-Sent Events**: eventos `status` ("Procurando oportunidades paradas"), `delta` (texto) e `done`/`error`. A UI mostra "Iris está analisando os dados..." com as consultas em andamento e, ao fim, as fontes consultadas.
 - Loop do agente com limite de 6 etapas, ferramentas independentes em paralelo, `temperature: 0`, erros de ferramenta devolvidos ao modelo (nunca exceções para o usuário).
 - **Rate limit** por visitante (hash do IP) em uma tabela do próprio Postgres — funciona em serverless sem Redis. Falha do limitador não derruba a Iris (fail-open, registrado em log).
+
+### Histórico de conversas
+
+- **Identidade anônima:** sem login no case, cada visitante recebe um id aleatório num cookie `httpOnly` (o JavaScript da página não lê nem forja).
+- **Servidor como fonte da verdade:** o cliente envia apenas `conversationId` + a nova mensagem; o histórico enviado ao modelo (últimas 20 mensagens) é carregado do banco. Isso impede forjar mensagens antigas "da assistente" para manipular a IA.
+- **Separação de permissões:** o histórico (`iris_conversations`, `iris_messages`) é gravado pela aplicação com a conexão principal. A role da Iris **não consegue nem ler** essas tabelas (migration com `REVOKE`, coberto por teste de integração).
+- **Interface:** lista na página `/iris` com nova conversa, abrir e excluir; o painel lateral continua a conversa atual, restaurada ao recarregar a página.
 
 ### Busca híbrida de leads
 
@@ -233,10 +292,11 @@ Todas as regras vivem em `src/shared/rules.ts` e `src/shared/stages.ts` — a me
 | Unitários | `tests/unit/search-and-stream.test.ts` | RRF, parser de SSE com chunks fragmentados, validação do chat |
 | Integração | `tests/integration/metrics-consistency.test.ts` | **SQL bate com uma implementação de referência em JS** sobre os dados reais em 6 cenários de filtro; a **conexão da Iris devolve exatamente os mesmos números**; funil, lista de paradas e vendas mensais conferem com os cards |
 | Integração | `tests/integration/api-routes.test.ts` | Contrato HTTP, 400 com mensagem em português, paginação/ordenação no servidor |
+| Integração | `tests/integration/conversations.test.ts` | Histórico isolado por visitante, exclusão em cascata e role da Iris sem acesso às tabelas de conversa |
 | E2E | `tests/e2e/*.spec.ts` | Filtros recalculam a tela, empty state, busca sem acento, chat (LLM simulado), erro 429, painel lateral |
 | Avaliação | `scripts/eval-iris.ts` | Perguntas obrigatórias com o LLM real, números conferidos contra o dashboard |
 
-Resultado atual: **59 testes (Vitest) + 7 E2E (Playwright) passando**, TypeScript estrito sem `any`, ESLint limpo e build de produção ok.
+Resultado atual: **65 testes (Vitest) + 7 E2E (Playwright) passando**, TypeScript estrito sem `any`, ESLint limpo e build de produção ok.
 
 ---
 
@@ -246,7 +306,7 @@ Resultado atual: **59 testes (Vitest) + 7 E2E (Playwright) passando**, TypeScrip
 |---|---|
 | CRUD de leads/oportunidades | Fora do escopo do case; o foco é leitura, consistência e decisão |
 | Autenticação e multi-tenant | Demo pública; o rate limit protege o custo da IA. Em produção, a role somente leitura seria por tenant (RLS) |
-| Persistência das conversas | Histórico fica no cliente e é enviado a cada pergunta (até 20 mensagens). Simples e sem dados pessoais armazenados |
+| Histórico vinculado a uma conta | Sem autenticação, o histórico é por navegador (cookie anônimo). Limpar os cookies "perde" as conversas — aceitável num demo, resolvido com login |
 | Tempo real (SSE/WebSocket) no dashboard | Os dados não mudam sem CRUD; atualização ao voltar para a aba + botão "Atualizar" |
 | Agregações pré-calculadas | Com dezenas de registros, agregar em SQL a cada requisição é instantâneo. Em escala: índices compostos, materialized views ou tabelas de fatos por dia |
 | Seed relativo à data atual | Garante que o demo nunca "envelhece", mas as contagens de "paradas" mudam com os dias; basta rodar `db:seed` de novo |
@@ -280,11 +340,32 @@ Resultado atual: **59 testes (Vitest) + 7 E2E (Playwright) passando**, TypeScrip
 
 ## Próximos passos
 
+### 1. Autenticação
+
+Login com **Auth.js** (ou Clerk) e sessão por cookie seguro. O histórico da Iris deixa de ser por navegador e passa a ser por usuário (`user_id` no lugar do `visitor_id`, com migração das conversas anônimas no primeiro login). Rotas da API passam a exigir sessão; o rate limit vira por usuário, não por IP.
+
+### 2. Permissões
+
+- **Papéis:** *vendedor* vê só a própria carteira; *gestor* vê o time; *admin* vê tudo e gerencia usuários.
+- **No banco, não só na tela:** Row Level Security no Postgres com `organization_id` e `sales_rep_id`, aplicada a partir do usuário da sessão (`SET app.user_id`). Assim o dashboard e a Iris herdam o mesmo escopo automaticamente — a Iris de um vendedor simplesmente não enxerga a carteira do colega.
+- **Multi-tenant:** uma role somente leitura por organização para as ferramentas da IA.
+
+### 3. Function calling com ações (com confirmação)
+
+Hoje a Iris só lê. O próximo passo é deixá-la **propor ações**, sem executá-las sozinha:
+
+1. Novas ferramentas de escrita, separadas das de leitura: `move_stage`, `log_follow_up`, `schedule_task`, `reassign_opportunity`.
+2. A ferramenta não grava: devolve uma **proposta** ("Mover #74 para Qualificação?"), que a UI mostra como um cartão com **Confirmar / Cancelar**.
+3. Só a confirmação humana chama a API de escrita — com a sessão e as permissões do usuário, nunca com a credencial da IA.
+4. Toda ação confirmada vai para uma trilha de auditoria (quem, quando, o que a Iris sugeriu e o que foi feito).
+
+Isso mantém a garantia atual (a IA não altera dados por conta própria) e transforma a recomendação em um clique.
+
+### Outros
+
 - **Observabilidade:** Sentry para erros de front e back (com contexto de filtros e da conversa da Iris, sem dados pessoais) e **OpenTelemetry** via `instrumentation.ts` — spans por requisição, por query SQL e por chamada à OpenAI, com latência, tokens e ferramentas usadas por pergunta. Isso permitiria acompanhar custo por conversa e taxa de respostas com erro de ferramenta.
 - **Tempo real quando houver CRUD:** `LISTEN/NOTIFY` do Postgres alimentando um canal SSE que invalida apenas as queries afetadas no TanStack Query.
 - **Eval contínuo da Iris no CI** com um conjunto maior de perguntas (incluindo adversariais e fora de contexto) e orçamento de custo.
-- **Autenticação, multi-tenant e RLS** por organização; role somente leitura por tenant.
-- **Persistência de conversas** com consentimento, para continuidade entre dispositivos.
 - **Alertas proativos** (ex.: WhatsApp/e-mail semanal) com as negociações paradas de cada responsável.
 
 ---
