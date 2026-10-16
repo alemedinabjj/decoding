@@ -86,7 +86,9 @@ export interface MonthAggregate {
 
 /** Ganhos agrupados pelo mês de fechamento (fuso de São Paulo). */
 export async function aggregateWinsByMonth(db: Db, filters: FilterParams): Promise<MonthAggregate[]> {
-  const month = sql<string>`to_char(date_trunc('month', ${opportunities.closedAt} AT TIME ZONE ${APP_TIMEZONE}), 'YYYY-MM')`;
+  // Fuso embutido como literal (constante interna, não entrada do usuário): o Postgres
+  // exige que a expressão do SELECT seja idêntica à do GROUP BY, o que parâmetros ($n) quebram.
+  const month = sql<string>`to_char(date_trunc('month', ${opportunities.closedAt} AT TIME ZONE ${sql.raw(`'${APP_TIMEZONE}'`)}), 'YYYY-MM')`;
   return db
     .select({
       month,

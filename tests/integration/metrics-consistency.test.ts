@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { leads, opportunities, salesReps } from "@/server/db/schema";
 import type { Db } from "@/server/repositories/opportunity-repository";
-import { getDashboardMetrics, getFunnel } from "@/server/services/dashboard-service";
+import { getDashboardMetrics, getFunnel, getMonthlyWins } from "@/server/services/dashboard-service";
 import { listOpportunities, listStaleOpportunities } from "@/server/services/opportunity-service";
 import { conversionRate, isStale } from "@/shared/rules";
 import { isOpenStage, type Stage } from "@/shared/stages";
@@ -114,6 +114,14 @@ describe.skipIf(!hasDatabase)("consistência dos indicadores", () => {
       getDashboardMetrics(readonlyDb, filters, NOW),
     ]);
     expect(fromIris).toEqual(fromDashboard);
+  });
+
+  it.each([0, 1, 4])("cenário %i: a soma das vendas mensais bate com o card de vendas concluídas", async (index) => {
+    const [, filters] = scenarios()[index];
+    const [months, metrics] = await Promise.all([getMonthlyWins(db, filters, NOW), getDashboardMetrics(db, filters, NOW)]);
+    expect(months.reduce((acc, m) => acc + m.wonCount, 0)).toBe(metrics.wonCount);
+    const keys = months.map((m) => m.month);
+    expect(keys).toEqual([...keys].sort());
   });
 
   it("o funil soma o total de oportunidades e cobre as 6 etapas", async () => {

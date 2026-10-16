@@ -2,6 +2,9 @@ import { z } from "zod";
 import { STAGES } from "./stages";
 import { OPPORTUNITY_SORT_FIELDS, type FilterParams, type OpportunityQuery } from "./types";
 
+// Mensagens de validação em português (são exibidas ao usuário em caso de erro 400).
+z.config(z.locales.pt());
+
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use o formato AAAA-MM-DD")
