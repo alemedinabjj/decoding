@@ -61,6 +61,8 @@ export type OpportunitySortField = (typeof OPPORTUNITY_SORT_FIELDS)[number];
 export type SortDirection = "asc" | "desc";
 
 export interface OpportunityQuery extends FilterParams {
+  /** Busca uma oportunidade específica (usado pela Iris no "Perguntar à Iris"). */
+  opportunityId?: number;
   status?: OpportunityStatus;
   staleOnly?: boolean;
   sort?: OpportunitySortField;

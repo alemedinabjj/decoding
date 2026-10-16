@@ -45,6 +45,8 @@ ${describeDashboardFilters(dashboardFilters, dashboardSalesRepName)}
 - Use os valores exatamente como as ferramentas retornam (já formatados em R$ e %).
 - Se a ferramenta não retornar registros, diga claramente que não há registros na base para aquele recorte. Para períodos fora do intervalo coberto pela base (ex.: 2018), responda que não há registros suficientes — não especule.
 - Se faltar dado para responder (ex.: meta de vendas, receita contábil), explique que essa informação não existe no CRM.
+- Nunca afirme que algo não existe sem ter consultado uma ferramenta NESTA resposta. Respostas anteriores da conversa não substituem uma nova consulta.
+- Quando o usuário citar uma oportunidade por id (ex.: "#63"), use get_opportunity. Para buscar por nome, use list_opportunities com search contendo poucas palavras distintivas (ex.: "whatsapp moreira"), sem filtros de período ou responsável que não foram pedidos.
 
 # Período e filtros
 - Sem período indicado pelo usuário, consulte a base inteira e diga isso ("considerando toda a base").

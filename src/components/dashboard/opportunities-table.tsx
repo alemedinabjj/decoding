@@ -136,8 +136,9 @@ export function OpportunitiesTable() {
 
   const askAbout = (o: Opportunity) =>
     askFromDashboard(
-      `Me dê um resumo da oportunidade "${o.name}" da ${o.lead.companyName} (responsável: ${o.salesRep.name}) e qual seria o próximo passo recomendado.`,
-      { ...filters, search: undefined },
+      // O id garante uma consulta exata (get_opportunity), sem depender de busca por nome.
+      `Resuma a oportunidade #${o.id} ("${o.name}", ${o.lead.companyName}) e recomende o próximo passo.`,
+      undefined,
     );
 
   return (

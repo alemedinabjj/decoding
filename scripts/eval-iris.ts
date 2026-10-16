@@ -54,6 +54,17 @@ async function main() {
       expect: stale.items.flatMap((o) => [o.lead.companyName, formatBRL(o.valueCents), o.salesRep.name]),
     },
     { question: "Qual foi a receita de 2018?", expect: ["2018"], forbid: [/R\$\s?\d/] },
+    ...stale.items.slice(0, 1).map((o) => ({
+      // Mesmo texto gerado pelo botão "Perguntar à Iris" da tabela.
+      question: `Resuma a oportunidade #${o.id} ("${o.name}", ${o.lead.companyName}) e recomende o próximo passo.`,
+      expect: [formatBRL(o.valueCents), o.salesRep.name],
+      forbid: [/não (há|existe) registro/i],
+    })),
+    ...top3.items.slice(1, 2).map((o) => ({
+      question: `Como está a negociação "${o.name}" da ${o.lead.companyName}?`,
+      expect: [formatBRL(o.valueCents)],
+      forbid: [/não (há|existe) registro/i],
+    })),
   ];
 
   let failures = 0;

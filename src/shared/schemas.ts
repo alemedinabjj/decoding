@@ -32,6 +32,7 @@ export const opportunityQuerySchema = z
     stage: z.preprocess(emptyToUndefined, z.enum(STAGES).optional()),
     salesRepId: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
     search: z.preprocess(emptyToUndefined, z.string().trim().max(100).optional()),
+    opportunityId: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
     status: z.preprocess(emptyToUndefined, z.enum(["open", "closed"]).optional()),
     staleOnly: z.preprocess(
       (v) => (v === "true" ? true : v === "false" ? false : emptyToUndefined(v)),

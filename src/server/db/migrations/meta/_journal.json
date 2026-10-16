@@ -15,6 +15,13 @@
       "when": 1792155297399,
       "tag": "0001_init_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792158675254,
+      "tag": "0002_iris_history",
+      "breakpoints": true
     }
   ]
 }

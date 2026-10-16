@@ -3,11 +3,13 @@ import {
   bigint,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  uuid,
   vector,
 } from "drizzle-orm/pg-core";
 import { STAGES } from "../../shared/stages";
@@ -79,6 +81,38 @@ export const rateLimits = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.key, t.windowStart] })],
+);
+
+/**
+ * Histórico de conversas da Iris, por visitante anônimo (cookie httpOnly).
+ * Escrito pela aplicação — as ferramentas da IA continuam somente leitura.
+ */
+export const irisConversations = pgTable(
+  "iris_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    visitorId: text("visitor_id").notNull(),
+    title: text("title").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("iris_conversations_visitor_idx").on(t.visitorId, t.updatedAt)],
+);
+
+export const irisMessages = pgTable(
+  "iris_messages",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => irisConversations.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    content: text("content").notNull(),
+    /** Consultas feitas pela Iris para produzir a resposta (rótulos exibidos ao usuário). */
+    steps: jsonb("steps").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("iris_messages_conversation_idx").on(t.conversationId, t.id)],
 );
 
 export type SalesRepRow = typeof salesReps.$inferSelect;

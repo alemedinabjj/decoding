@@ -4,6 +4,8 @@ import { CLOSED_STAGES, OPEN_STAGES } from "../../shared/stages";
 import { APP_TIMEZONE, type FilterParams, type OpportunityQuery } from "../../shared/types";
 import { staleCutoff } from "../../shared/rules";
 
+const STOPWORDS = new Set(["de", "da", "do", "das", "dos", "e", "com", "para", "a", "o", "em"]);
+
 /** Escapa curingas do LIKE digitados pelo usuário. */
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
@@ -40,11 +42,16 @@ export function buildFilterConditions(filters: FilterParams): SQL[] {
     conditions.push(eq(opportunities.salesRepId, filters.salesRepId));
   }
   if (filters.search) {
-    const pattern = `%${escapeLike(filters.search)}%`;
+    // Cada palavra precisa aparecer em algum dos campos: "whatsapp moreira" encontra
+    // a oportunidade "Integração com WhatsApp" da "Advocacia Moreira & Associados".
+    const haystack = sql`unaccent(${leads.companyName} || ' ' || ${leads.contactName} || ' ' || ${opportunities.name})`;
+    const tokens = filters.search
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 2 && !STOPWORDS.has(token.toLowerCase()));
+    const allTokens = tokens.map((token) => sql`${haystack} ILIKE unaccent(${`%${escapeLike(token)}%`})`);
     conditions.push(sql`(
-      unaccent(${leads.companyName}) ILIKE unaccent(${pattern})
-      OR unaccent(${leads.contactName}) ILIKE unaccent(${pattern})
-      OR unaccent(${opportunities.name}) ILIKE unaccent(${pattern})
+      ${allTokens.length ? sql.join(allTokens, sql` AND `) : sql`false`}
       OR similarity(unaccent(lower(${leads.companyName})), unaccent(lower(${filters.search}))) > 0.35
     )`);
   }
@@ -54,6 +61,7 @@ export function buildFilterConditions(filters: FilterParams): SQL[] {
 
 export function buildQueryConditions(query: OpportunityQuery, now: Date): SQL[] {
   const conditions = buildFilterConditions(query);
+  if (query.opportunityId) conditions.push(eq(opportunities.id, query.opportunityId));
   if (query.status === "open") conditions.push(isOpenCondition());
   if (query.status === "closed") conditions.push(isClosedCondition());
   if (query.staleOnly) conditions.push(isStaleCondition(now));

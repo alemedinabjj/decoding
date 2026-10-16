@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Maximize2, Sparkles } from "lucide-react";
+import { History, Sparkles } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { useIris } from "./iris-provider";
@@ -26,7 +26,7 @@ export function IrisPanel() {
               onClick={() => setPanelOpen(false)}
               className="inline-flex shrink-0 items-center gap-1 text-xs underline-offset-2 hover:underline"
             >
-              <Maximize2 className="size-3" /> Tela cheia
+              <History className="size-3" /> Histórico
             </Link>
           </SheetDescription>
         </SheetHeader>

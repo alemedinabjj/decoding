@@ -202,6 +202,33 @@ const tools: IrisTool[] = [
     },
   },
   {
+    name: "get_opportunity",
+    label: "Consultando a oportunidade",
+    description:
+      "Detalhes de UMA oportunidade pelo id (ex.: '#63'): etapa, valor, responsável, contato, segmento, datas, dias sem atualização e notas. Use sempre que o usuário citar uma oportunidade por #id.",
+    parameters: {
+      type: "object",
+      properties: { id: { type: "integer", description: "Id numérico da oportunidade (sem o #)." } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    async execute(raw, ctx) {
+      const { id } = z.object({ id: z.number().int().positive() }).parse(raw);
+      const result = await listOpportunities(ctx.db, { opportunityId: id, pageSize: 1 }, ctx.now);
+      const o = result.items[0];
+      if (!o) return { encontrada: false, mensagem: `Não existe oportunidade com id ${id} na base.` };
+      return {
+        encontrada: true,
+        ...summarizeOpportunity(o),
+        segmento: o.lead.segment,
+        criadaEm: formatDate(o.createdAt),
+        encerradaEm: o.closedAt ? formatDate(o.closedAt) : null,
+        notas: o.notes,
+        regraParada: `Parada = aberta e sem atualização há mais de ${STALE_AFTER_DAYS} dias`,
+      };
+    },
+  },
+  {
     name: "get_stale_opportunities",
     label: "Procurando oportunidades paradas",
     description: `Todas as oportunidades abertas sem atualização há mais de ${STALE_AFTER_DAYS} dias (precisam de atenção), da mais valiosa para a menos valiosa, com responsável e dias parados.`,

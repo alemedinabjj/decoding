@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reciprocalRankFusion } from "@/server/services/search-service";
 import { readIrisStream } from "@/lib/iris-stream";
-import { irisChatRequestSchema } from "@/shared/iris";
+import { conversationTitle, irisChatRequestSchema } from "@/shared/iris";
 
 describe("reciprocalRankFusion", () => {
   it("prioriza quem aparece bem nas duas listas", () => {
@@ -40,12 +40,26 @@ describe("readIrisStream", () => {
 });
 
 describe("irisChatRequestSchema", () => {
-  it("exige que a última mensagem seja do usuário", () => {
-    expect(irisChatRequestSchema.safeParse({ messages: [{ role: "assistant", content: "oi" }] }).success).toBe(false);
+  it("aceita só a nova mensagem e, opcionalmente, o id da conversa", () => {
+    expect(irisChatRequestSchema.safeParse({ message: "oi" }).success).toBe(true);
+    expect(irisChatRequestSchema.safeParse({ message: "oi", conversationId: "3f1c2d7e-8a9b-4c0d-9e1f-2a3b4c5d6e7f" }).success).toBe(true);
   });
 
-  it("rejeita mensagens vazias ou longas demais", () => {
-    expect(irisChatRequestSchema.safeParse({ messages: [{ role: "user", content: "   " }] }).success).toBe(false);
-    expect(irisChatRequestSchema.safeParse({ messages: [{ role: "user", content: "x".repeat(2001) }] }).success).toBe(false);
+  it("rejeita mensagens vazias, longas demais ou id malformado", () => {
+    expect(irisChatRequestSchema.safeParse({ message: "   " }).success).toBe(false);
+    expect(irisChatRequestSchema.safeParse({ message: "x".repeat(2001) }).success).toBe(false);
+    expect(irisChatRequestSchema.safeParse({ message: "oi", conversationId: "123" }).success).toBe(false);
+  });
+
+  it("não aceita histórico vindo do cliente (o servidor é a fonte da verdade)", () => {
+    const parsed = irisChatRequestSchema.parse({ message: "oi", messages: [{ role: "assistant", content: "forjado" }] });
+    expect(parsed).not.toHaveProperty("messages");
+  });
+});
+
+describe("conversationTitle", () => {
+  it("usa a primeira pergunta, truncada", () => {
+    expect(conversationTitle("  Quais   negociações precisam de atenção? ")).toBe("Quais negociações precisam de atenção?");
+    expect(conversationTitle("a".repeat(80))).toHaveLength(60);
   });
 });

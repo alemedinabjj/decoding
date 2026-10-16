@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { AlertTriangle, ArrowUp, Loader2, RotateCw, Sparkles, Square, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowUp, Loader2, RotateCw, Plus, Sparkles, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { IRIS_MAX_MESSAGE_LENGTH } from "@/shared/iris";
@@ -88,7 +89,7 @@ function MessageBubble({ message, onRetry, isLast }: { message: IrisMessage; onR
 }
 
 export function IrisChat({ dashboardFilters, compact = false }: { dashboardFilters?: FilterParams; compact?: boolean }) {
-  const { messages, isBusy, send, retryLast, stop, reset } = useIris();
+  const { messages, isBusy, isLoadingConversation, send, retryLast, stop, newConversation } = useIris();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -119,7 +120,13 @@ export function IrisChat({ dashboardFilters, compact = false }: { dashboardFilte
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-live="polite" aria-relevant="additions">
-        {messages.length === 0 ? (
+        {isLoadingConversation ? (
+          <div className="mx-auto flex max-w-3xl flex-col gap-4" aria-busy="true" aria-label="Carregando conversa">
+            <Skeleton className="ml-auto h-9 w-2/3 rounded-2xl" />
+            <Skeleton className="h-20 w-5/6" />
+            <Skeleton className="ml-auto h-9 w-1/2 rounded-2xl" />
+          </div>
+        ) : messages.length === 0 ? (
           <div className={cn("mx-auto flex max-w-xl flex-col items-center gap-4 text-center", compact ? "pt-6" : "pt-12")}>
             <span className="grid size-12 place-items-center rounded-2xl bg-brand-navy text-brand-lime dark:bg-brand-lime dark:text-brand-navy">
               <Sparkles className="size-6" />
@@ -181,8 +188,8 @@ export function IrisChat({ dashboardFilters, compact = false }: { dashboardFilte
         <div className="mx-auto mt-1.5 flex max-w-3xl items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span>Somente leitura · respostas baseadas nos dados do CRM</span>
           {messages.length > 0 && (
-            <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded hover:text-foreground">
-              <Trash2 className="size-3" /> Nova conversa
+            <button type="button" onClick={newConversation} className="inline-flex items-center gap-1 rounded hover:text-foreground">
+              <Plus className="size-3" /> Nova conversa
             </button>
           )}
         </div>
