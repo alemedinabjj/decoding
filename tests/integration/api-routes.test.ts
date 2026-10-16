@@ -2,7 +2,13 @@
  * Integração dos route handlers com o banco real: contrato HTTP, validação e
  * tratamento de erros. Chama os handlers diretamente (sem subir servidor).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// `connection()` só existe dentro de uma requisição do Next; nos testes vira no-op.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: async () => undefined,
+}));
 import { GET as getMetrics } from "@/app/api/dashboard/metrics/route";
 import { GET as getFunnel } from "@/app/api/dashboard/funnel/route";
 import { GET as getMonthlyWins } from "@/app/api/dashboard/monthly-wins/route";

@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { searchParamsToObject } from "@/shared/schemas";
 import type { ApiError } from "@/shared/types";
@@ -29,6 +30,9 @@ export function parseSearchParams<T>(request: Request, schema: ZodType<T>): T {
  * falhas inesperadas (500, sem vazar detalhes internos para o cliente).
  */
 export async function handleRoute(handler: () => Promise<Response>): Promise<Response> {
+  // Dados sempre por requisição: sinaliza ao Next (Cache Components) que esta rota
+  // não deve ser pré-renderizada, fora do try para o sinal não ser engolido como erro.
+  await connection();
   try {
     return await handler();
   } catch (error) {
